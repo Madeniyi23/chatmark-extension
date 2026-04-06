@@ -1,20 +1,16 @@
 {
   "manifest_version": 3,
-  "name": "ChatMark — Bookmark AI Conversations",
-  "version": "1.0.1",
-  "description": "Highlight and bookmark sections of your AI chats across Claude, ChatGPT, Gemini & more. Search, tag, and jump back to the exact moment.",
+  "name": "ChatNugget — Bookmark AI Conversations",
+  "version": "2.0.0",
+  "description": "Highlight and bookmark specific sections within AI conversations. Search, tag, and deep-link back to the exact spot — across Claude, ChatGPT, and Gemini.",
   "permissions": ["storage", "activeTab", "contextMenus", "tabs"],
-  "background": {
-    "service_worker": "background.js"
-  },
   "content_scripts": [
     {
       "matches": [
         "https://claude.ai/*",
         "https://chat.openai.com/*",
         "https://chatgpt.com/*",
-        "https://gemini.google.com/*",
-        "https://copilot.microsoft.com/*"
+        "https://gemini.google.com/*"
       ],
       "js": ["content.js"],
       "css": ["content.css"],
@@ -25,7 +21,20 @@
     "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
-      "48": "icons/icon48.png"
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+    "bookmark-selection": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+B",
+        "mac": "Command+Shift+B"
+      },
+      "description": "Bookmark selected text"
     }
   },
   "icons": {

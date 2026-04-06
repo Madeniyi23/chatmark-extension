@@ -3,90 +3,84 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ChatMark</title>
+  <title>ChatNugget</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
-  <!-- ─── Header ─────────────────────────────────────────── -->
-  <header class="header">
-    <div class="header-brand">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+  <div class="popup-header">
+    <div class="popup-brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2">
+        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z">
+        </path>
       </svg>
-      <h1>ChatMark</h1>
+      <h2>ChatNugget</h2>
     </div>
-    <div class="header-stats">
-      <span id="bookmark-count">0</span> bookmarks
+    <div class="popup-stats">
+      <span id="bookmark-count">0</span> nuggets
     </div>
-  </header>
-
-  <!-- ─── Search & Filter Bar ────────────────────────────── -->
-  <div class="search-bar">
-    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="11" cy="11" r="8"></circle>
-      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-    </svg>    <input type="text" id="search-input" placeholder="Search bookmarks, tags, or notes..." autocomplete="off" />
-    <button id="clear-search" class="clear-btn" style="display:none" title="Clear search">&times;</button>
   </div>
 
-  <!-- ─── Filter Chips ───────────────────────────────────── -->
-  <div class="filter-bar">
-    <button class="filter-chip active" data-platform="all">All</button>
-    <button class="filter-chip" data-platform="claude">
+  <div class="search-bar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2.5">
+      <circle cx="11" cy="11" r="8"></circle>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+    </svg>
+    <input type="text" id="search-input"
+      placeholder="Search nuggets, tags, or notes..." />
+  </div>
+
+  <div class="filter-bar" id="filter-bar">
+    <button class="chip active" data-platform="all">All</button>
+    <button class="chip" data-platform="claude">
       <span class="chip-dot chip-dot-claude"></span>Claude
     </button>
-    <button class="filter-chip" data-platform="chatgpt">
+    <button class="chip" data-platform="chatgpt">
       <span class="chip-dot chip-dot-chatgpt"></span>ChatGPT
     </button>
-    <button class="filter-chip" data-platform="gemini">
+    <button class="chip" data-platform="gemini">
       <span class="chip-dot chip-dot-gemini"></span>Gemini
     </button>
   </div>
 
-  <!-- ─── Tag Cloud ──────────────────────────────────────── -->
-  <div id="tag-cloud" class="tag-cloud" style="display:none"></div>
+  <div class="tag-cloud" id="tag-cloud"></div>
 
-  <!-- ─── Bookmarks List ─────────────────────────────────── -->
-  <div id="bookmarks-container" class="bookmarks-container"></div>
-
-  <!-- ─── Empty State ────────────────────────────────────── -->
-  <div id="empty-state" class="empty-state" style="display:none">
-    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-    </svg>    <p class="empty-title">No bookmarks yet</p>
-    <p class="empty-desc">Select text in any AI chat and click the bookmark button to save it.</p>
+  <div class="bookmarks-list" id="bookmarks-list">
+    <div class="empty-state" id="empty-state">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
+        stroke="#ddd" stroke-width="1.5">
+        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z">
+        </path>
+      </svg>
+      <p>No nuggets saved yet</p>
+      <span>Select text in any AI chat and click Bookmark</span>
+    </div>
   </div>
 
-  <!-- ─── No Results State ───────────────────────────────── -->
-  <div id="no-results" class="empty-state" style="display:none">
-    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="11" cy="11" r="8"></circle>
-      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-    </svg>
-    <p class="empty-title">No matches found</p>
-    <p class="empty-desc">Try a different search term or filter.</p>
-  </div>
-
-  <!-- ─── Footer ─────────────────────────────────────────── -->
-  <footer class="footer">
-    <button id="export-btn" class="footer-btn" title="Export bookmarks">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <div class="popup-footer">
+    <button class="footer-btn" id="btn-export">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
         <polyline points="7 10 12 15 17 10"></polyline>
         <line x1="12" y1="15" x2="12" y2="3"></line>
       </svg>
       Export
     </button>
-    <button id="import-btn" class="footer-btn" title="Import bookmarks">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <button class="footer-btn" id="btn-import">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-        <polyline points="17 8 12 3 7 8"></polyline>        <line x1="12" y1="3" x2="12" y2="15"></line>
+        <polyline points="17 8 12 3 7 8"></polyline>
+        <line x1="12" y1="3" x2="12" y2="15"></line>
       </svg>
       Import
     </button>
-  </footer>
+  </div>
 
   <input type="file" id="import-file" accept=".json" style="display:none" />
+
   <script src="popup.js"></script>
 </body>
 </html>

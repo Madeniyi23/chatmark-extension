@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ChatMark — Preview</title>
+  <title>ChatNugget — Preview</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -15,7 +15,6 @@
       padding: 40px 20px;
       min-height: 100vh;
     }
-
     .page-title {
       font-size: 32px;
       font-weight: 800;
@@ -27,31 +26,29 @@
     .page-subtitle {
       font-size: 15px;
       color: #888;
-      margin-bottom: 40px;
+      margin-bottom: 10px;
     }
+    .new-badges { display: flex; gap: 8px; margin-bottom: 30px; flex-wrap: wrap; justify-content: center; }
+    .new-badge {
+      font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px;
+      background: linear-gradient(135deg, #6C5CE7, #8B7CF7); color: #fff;
+      letter-spacing: 0.3px;
+    }
+    .new-badge.green { background: linear-gradient(135deg, #00b894, #55efc4); color: #155724; }
+    .new-badge.gold { background: linear-gradient(135deg, #fdcb6e, #ffeaa7); color: #8B6914; }
 
     .demo-row {
-      display: flex;
-      gap: 40px;
-      flex-wrap: wrap;
-      justify-content: center;
-      max-width: 1200px;
+      display: flex; gap: 30px; flex-wrap: wrap;
+      justify-content: center; max-width: 1200px;
     }
-
     .demo-card {
-      background: #fff;
-      border-radius: 20px;
-      box-shadow: 0 8px 40px rgba(108, 92, 231, 0.12), 0 1px 4px rgba(0,0,0,0.04);
+      background: #fff; border-radius: 20px;
+      box-shadow: 0 8px 40px rgba(108,92,231,0.12), 0 1px 4px rgba(0,0,0,0.04);
       overflow: hidden;
     }
-
     .demo-label {
-      padding: 14px 20px 10px;
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #6C5CE7;
+      padding: 14px 20px 10px; font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1px; color: #6C5CE7;
       border-bottom: 1px solid #f0f0f0;
     }
 
@@ -70,6 +67,7 @@
     }
     .popup-stats { font-size: 12px; color: #888; }
     .popup-stats span { font-weight: 700; color: #6C5CE7; }
+    .badge-icon { display: inline-flex; align-items: center; gap: 3px; background: #6C5CE7; color: #fff; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 8px; margin-left: 4px; }
     .search-bar { position: relative; padding: 10px 16px 6px; }
     .search-bar input {
       width: 100%; padding: 9px 12px 9px 36px;
@@ -81,8 +79,7 @@
       color: #aaa; margin-top: 2px;
     }
     .filter-bar {
-      display: flex; gap: 6px; padding: 8px 16px;
-      border-bottom: 1px solid #f0f0f0;
+      display: flex; gap: 6px; padding: 8px 16px; border-bottom: 1px solid #f0f0f0;
     }
     .chip {
       padding: 5px 12px; border: 1.5px solid #e8e8e8; border-radius: 20px;
@@ -109,12 +106,15 @@
     .date-header {
       font-size: 11px; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.6px; color: #999; padding: 10px 16px 6px;
+      display: flex; align-items: center; gap: 6px;
     }
+    .date-header svg { flex-shrink: 0; }
     .bm-card {
       background: #fff; border: 1px solid #efefef; border-radius: 12px;
-      padding: 12px 14px; margin: 0 16px 8px; transition: all 0.15s;
+      padding: 12px 14px; margin: 0 16px 8px; transition: all 0.15s; position: relative;
     }
     .bm-card:hover { border-color: #d8d4ff; box-shadow: 0 2px 12px rgba(108,92,231,0.06); }
+    .bm-card-pinned { border-left: 3px solid #6C5CE7; }
     .bm-title { font-size: 13px; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
     .bm-text { font-size: 12.5px; line-height: 1.55; color: #555; margin-bottom: 8px; }
     .bm-text .hl { background: #fff3bf; border-radius: 2px; padding: 0 1px; }
@@ -134,9 +134,17 @@
       background: #f0edff; padding: 2px 7px; border-radius: 10px;
     }
     .bm-time { font-size: 11px; color: #bbb; }
+    .bm-actions {
+      position: absolute; top: 8px; right: 8px;
+      display: flex; gap: 4px;
+    }
+    .bm-action-btn {
+      width: 24px; height: 24px; border: 1px solid #e8e8e8; border-radius: 5px;
+      background: #fff; color: #aaa; display: flex; align-items: center; justify-content: center;
+    }
+    .bm-action-btn.active-pin { color: #6C5CE7; }
     .popup-footer {
-      display: flex; gap: 8px; padding: 10px 16px;
-      border-top: 1px solid #f0f0f0;
+      display: flex; gap: 8px; padding: 10px 16px; border-top: 1px solid #f0f0f0;
     }
     .footer-btn {
       flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
@@ -144,7 +152,7 @@
       font-size: 12px; font-weight: 600; color: #777; background: #fff;
     }
 
-    /* --- BOOKMARK DIALOG MOCK --- */
+    /* --- DIALOG MOCK --- */
     .dialog-mock { width: 460px; }
     .dialog-content { padding: 0 20px 20px; }
     .dialog-header {
@@ -153,6 +161,7 @@
     }
     .dialog-header svg { color: #6C5CE7; }
     .dialog-header h3 { font-size: 16px; font-weight: 700; color: #1a1a2e; flex: 1; }
+    .shortcut-hint { font-size: 11px; color: #aaa; background: #f5f5f5; padding: 2px 8px; border-radius: 4px; }
     .preview-box {
       background: #f8f7ff; border: 1px solid #e8e5ff; border-radius: 10px;
       padding: 12px 14px; margin-top: 16px;
@@ -170,10 +179,7 @@
       border: 1.5px solid #e0e0e0; border-radius: 8px;
       font-size: 14px; color: #333; outline: none; font-family: inherit;
     }
-    .field input::placeholder, .field textarea::placeholder { color: #bbb; }
-    .meta-row {
-      display: flex; align-items: center; gap: 8px; margin-top: 12px;
-    }
+    .meta-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
     .platform-badge {
       font-size: 11px; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.5px; padding: 3px 8px; border-radius: 5px;
@@ -201,37 +207,41 @@
       background: #f8f8f8; border-radius: 12px; padding: 16px;
       font-size: 14px; line-height: 1.7; color: #333; position: relative;
     }
-    .mock-selection {
-      background: rgba(66, 133, 244, 0.15);
-      border-radius: 2px;
-    }
+    .mock-selection { background: rgba(66, 133, 244, 0.15); border-radius: 2px; }
     .float-btn-mock {
-      position: absolute;
-      top: -10px; left: 50%; transform: translateX(-50%);
-      display: flex; align-items: center; gap: 6px;
-      padding: 7px 14px;
+      position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 6px; padding: 7px 14px;
       background: linear-gradient(135deg, #6C5CE7, #8B7CF7);
-      color: #fff; font-size: 13px; font-weight: 600;
-      border-radius: 8px;
+      color: #fff; font-size: 13px; font-weight: 600; border-radius: 8px;
       box-shadow: 0 4px 16px rgba(108,92,231,0.35);
+    }
+    .shortcut-badge {
+      font-size: 10px; background: rgba(255,255,255,0.25); padding: 2px 6px;
+      border-radius: 4px; margin-left: 4px;
     }
   </style>
 </head>
 <body>
 
-  <div class="page-title">ChatMark</div>
-  <p class="page-subtitle">Bookmark moments in your AI conversations</p>
+  <div class="page-title">ChatNugget</div>
+  <p class="page-subtitle">Save the golden nuggets from your AI conversations</p>
+  <div class="new-badges">
+    <span class="new-badge">v2.0</span>
+    <span class="new-badge green">Pin Bookmarks</span>
+    <span class="new-badge gold">Ctrl+Shift+B Shortcut</span>
+    <span class="new-badge">Badge Count</span>
+  </div>
 
   <div class="demo-row">
 
     <!-- Floating Button Demo -->
     <div class="demo-card float-demo">
-      <div class="demo-label">1. Select text &rarr; Click Bookmark</div>
+      <div class="demo-label">1. Select text &rarr; Bookmark (or Ctrl+Shift+B)</div>
       <div style="padding: 20px 4px 10px">
         <div class="mock-chat">
           <div class="float-btn-mock">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-            Bookmark
+            Bookmark <span class="shortcut-badge">Ctrl+Shift+B</span>
           </div>
           To implement a rate limiter in Python, you can use the <span class="mock-selection">token bucket algorithm. This approach gives you a bucket that fills at a constant rate. Each request removes a token, and if the bucket is empty, the request is denied or delayed</span>. Here's a simple implementation...
         </div>
@@ -240,14 +250,14 @@
 
     <!-- Popup Mock -->
     <div class="demo-card popup-mock">
-      <div class="demo-label">2. Search &amp; manage bookmarks</div>
+      <div class="demo-label">2. Search, filter &amp; pin nuggets</div>
 
       <div class="popup-header">
         <div class="popup-brand">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-          <h2>ChatMark</h2>
+          <h2>ChatNugget</h2>
         </div>
-        <div class="popup-stats"><span>12</span> bookmarks</div>
+        <div class="popup-stats"><span>12</span> nuggets <span class="badge-icon">12</span></div>
       </div>
 
       <div class="search-bar">
@@ -269,9 +279,18 @@
         <div class="tag-chip">#idea <span class="tag-count">2</span></div>
       </div>
 
-      <div class="date-header">Today</div>
+      <!-- Pinned section -->
+      <div class="date-header">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="#6C5CE7" stroke="#6C5CE7" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+        Pinned
+      </div>
 
-      <div class="bm-card">
+      <div class="bm-card bm-card-pinned">
+        <div class="bm-actions">
+          <div class="bm-action-btn active-pin">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="#6C5CE7" stroke="#6C5CE7" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+          </div>
+        </div>
         <div class="bm-title">Token Bucket Rate Limiter</div>
         <div class="bm-text">token bucket algorithm. This approach gives you a bucket that fills at a constant <span class="hl">rate limiter</span>. Each request removes a token...</div>
         <div class="bm-note">Great pattern for the API gateway project</div>
@@ -284,6 +303,8 @@
           <span class="bm-time">2:34 PM</span>
         </div>
       </div>
+
+      <div class="date-header">Today</div>
 
       <div class="bm-card">
         <div class="bm-title">Redis-based Rate Limiting</div>
@@ -316,7 +337,8 @@
 
       <div class="dialog-header">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-        <h3>Save Bookmark</h3>
+        <h3>Save Nugget</h3>
+        <span class="shortcut-hint">Ctrl+Enter to save</span>
       </div>
 
       <div class="dialog-content">
@@ -350,7 +372,7 @@
         <button class="btn-cancel">Cancel</button>
         <button class="btn-save">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-          Save Bookmark
+          Save Nugget
         </button>
       </div>
     </div>

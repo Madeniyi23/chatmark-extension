@@ -1,6 +1,7 @@
-// ChatMark — Content Script v1.1.0
-// Uses Chrome Text Fragments API for native scroll-to-text
-(function () {
+// ChatNugget — Content Script v2.0.0
+// Bookmark specific sections within AI conversations
+
+(function() {
   'use strict';
 
   function detectPlatform() {
@@ -8,206 +9,232 @@
     if (host.includes('claude.ai')) return 'claude';
     if (host.includes('chat.openai.com') || host.includes('chatgpt.com')) return 'chatgpt';
     if (host.includes('gemini.google.com')) return 'gemini';
-    if (host.includes('copilot.microsoft.com')) return 'copilot';
     return 'unknown';
   }
 
   var PLATFORM = detectPlatform();
 
-  function generateId() {
-    return 'cm_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
-  }
-
-  function getConversationTitle() {
-    var el = document.querySelector('title');
-    if (el && el.textContent.trim()) return el.textContent.trim().slice(0, 100);
-    el = document.querySelector('h1');
-    if (el && el.textContent.trim()) return el.textContent.trim().slice(0, 100);
-    return 'Untitled Chat';
-  }
-
-  function escapeHtml(str) {    var div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
-
-  // ── Generate a Text Fragment string from selected text ──
-  // Format: for short text, exact match. For long text, range match.
-  // See: https://web.dev/articles/text-fragments
+  // Generate text fragment for deep-linking
   function generateTextFragment(text) {
     var clean = text.trim();
-    if (!clean) return '';
-    // Get first ~6 words and last ~6 words
     var words = clean.split(/\s+/);
     if (words.length <= 12) {
-      // Short text — use exact match (first 8 words max)
       var exact = words.slice(0, 8).join(' ');
       return encodeURIComponent(exact);
     } else {
-      // Long text — use range match: startText,endText
       var startWords = words.slice(0, 6).join(' ');
       var endWords = words.slice(-6).join(' ');
       return encodeURIComponent(startWords) + ',' + encodeURIComponent(endWords);
     }
   }
 
-  // ── Floating Bookmark Button ──
+  // Floating bookmark button
   var floatingBtn = null;
-  var currentSelection = null;
+
   function createFloatingButton() {
-    if (floatingBtn) return floatingBtn;
+    if (floatingBtn) return;
     floatingBtn = document.createElement('div');
-    floatingBtn.id = 'chatmark-float-btn';
-    floatingBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg><span>Bookmark</span>';
+    floatingBtn.className = 'chatnugget-float-btn';
+    floatingBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg> Bookmark';
     floatingBtn.style.display = 'none';
     document.body.appendChild(floatingBtn);
-    floatingBtn.addEventListener('mousedown', function(e) {
+    floatingBtn.addEventListener('click', function(e) {
       e.preventDefault();
       e.stopPropagation();
-      if (currentSelection) showBookmarkDialog(currentSelection);
+      var sel = window.getSelection();
+      if (sel && sel.toString().trim().length > 0) {
+        showBookmarkDialog(sel.toString().trim());
+      }
+      floatingBtn.style.display = 'none';
     });
-    return floatingBtn;
   }
 
-  function showFloatingButton(x, y) {
-    var btn = createFloatingButton();
-    btn.style.display = 'flex';
-    btn.style.left = x + 'px';
-    btn.style.top = (y - 45) + 'px';
+  // Position and show the floating button near selection
+  function showFloatingButton() {
+    var sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.toString().trim().length === 0) {
+      if (floatingBtn) floatingBtn.style.display = 'none';
+      return;
+    }
+    createFloatingButton();
+    var range = sel.getRangeAt(0);
+    var rect = range.getBoundingClientRect();
+    floatingBtn.style.top = (window.scrollY + rect.top - 40) + 'px';
+    floatingBtn.style.left = (window.scrollX + rect.left + (rect.width / 2) - 50) + 'px';
+    floatingBtn.style.display = 'flex';
   }
 
-  function hideFloatingButton() {
-    if (floatingBtn) floatingBtn.style.display = 'none';
-  }
-
+  // Listen for text selection
   document.addEventListener('mouseup', function(e) {
-    if (e.target.closest('#chatmark-float-btn, #chatmark-dialog-overlay')) return;    setTimeout(function() {
-      var selection = window.getSelection();
-      var text = selection ? selection.toString().trim() : '';
-      if (text && text.length > 5) {
-        var range = selection.getRangeAt(0);
-        var rect = range.getBoundingClientRect();
-        currentSelection = {
-          text: text, fullText: text.slice(0, 2000), range: range.cloneRange(),
-          url: window.location.href, platform: PLATFORM,
-          conversationTitle: getConversationTitle()
-        };
-        showFloatingButton(rect.left + rect.width / 2 - 55, rect.top + window.scrollY);
-      } else { hideFloatingButton(); currentSelection = null; }
+    setTimeout(function() {
+      if (floatingBtn && floatingBtn.contains(e.target)) return;
+      showFloatingButton();
     }, 10);
   });
 
   document.addEventListener('mousedown', function(e) {
-    if (!e.target.closest('#chatmark-float-btn, #chatmark-dialog-overlay')) hideFloatingButton();
+    if (floatingBtn && !floatingBtn.contains(e.target)) {
+      floatingBtn.style.display = 'none';
+    }
   });
 
-  // ── Bookmark Dialog ──
-  function showBookmarkDialog(selectionData) {
-    hideFloatingButton();
+  // Show bookmark dialog
+  function showBookmarkDialog(selectedText) {
+    var existing = document.querySelector('.chatnugget-overlay');
+    if (existing) existing.remove();
+
     var overlay = document.createElement('div');
-    overlay.id = 'chatmark-dialog-overlay';
-    var preview = selectionData.text.length > 200 ? selectionData.text.slice(0, 200) + '...' : selectionData.text;
-    overlay.innerHTML = '<div class="chatmark-dialog">' +
-      '<div class="chatmark-dialog-header">' +      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>' +
-      '<h3>Save Bookmark</h3>' +
-      '<button class="chatmark-close-btn" id="chatmark-close">&times;</button></div>' +
-      '<div class="chatmark-dialog-body">' +
-      '<div class="chatmark-preview"><div class="chatmark-preview-label">Selected text</div>' +
-      '<div class="chatmark-preview-text">' + escapeHtml(preview) + '</div></div>' +
-      '<div class="chatmark-field"><label for="chatmark-title">Title</label>' +
-      '<input type="text" id="chatmark-title" placeholder="Give this bookmark a name..." autocomplete="off" /></div>' +
-      '<div class="chatmark-field"><label for="chatmark-tags">Tags <span class="chatmark-hint">(comma-separated)</span></label>' +
-      '<input type="text" id="chatmark-tags" placeholder="e.g. code, important, idea" autocomplete="off" /></div>' +
-      '<div class="chatmark-field"><label for="chatmark-note">Note <span class="chatmark-hint">(optional)</span></label>' +
-      '<textarea id="chatmark-note" rows="2" placeholder="Why is this worth remembering?"></textarea></div>' +
-      '<div class="chatmark-meta">' +
-      '<span class="chatmark-platform-badge chatmark-platform-' + PLATFORM + '">' + PLATFORM + '</span>' +
-      '<span class="chatmark-meta-title">' + escapeHtml(selectionData.conversationTitle.slice(0, 50)) + '</span></div></div>' +
-      '<div class="chatmark-dialog-footer">' +
-      '<button class="chatmark-btn chatmark-btn-cancel" id="chatmark-cancel">Cancel</button>' +
-      '<button class="chatmark-btn chatmark-btn-save" id="chatmark-save">' +
-      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg> Save Bookmark</button></div></div>';
-    document.body.appendChild(overlay);    setTimeout(function() { var t = document.getElementById('chatmark-title'); if (t) t.focus(); }, 50);
-    var close = function() { overlay.remove(); };
-    overlay.querySelector('#chatmark-close').addEventListener('click', close);
-    overlay.querySelector('#chatmark-cancel').addEventListener('click', close);
-    overlay.addEventListener('click', function(e) { if (e.target === overlay) close(); });
-    overlay.querySelector('#chatmark-save').addEventListener('click', function() {
-      var title = document.getElementById('chatmark-title').value.trim();
-      var tags = document.getElementById('chatmark-tags').value.split(',').map(function(t) { return t.trim().toLowerCase(); }).filter(Boolean);
-      var note = document.getElementById('chatmark-note').value.trim();
+    overlay.className = 'chatnugget-overlay';
 
-      // Generate the text fragment for this bookmark
-      var textFragment = generateTextFragment(selectionData.text);
+    var chatTitle = document.title || 'Untitled Chat';
+    var previewText = selectedText.length > 200 ? selectedText.substring(0, 200) + '...' : selectedText;
 
-      // Get the base URL without any existing fragment
-      var baseUrl = selectionData.url.split('#')[0];
+    var dialogHTML = '<div class="chatnugget-dialog">'
+      + '<div class="chatnugget-dialog-header">'
+      + '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>'
+      + '<h3>Save Nugget</h3>'
+      + '<span class="chatnugget-shortcut-hint">Ctrl+Enter to save</span>'
+      + '</div>'
+      + '<div class="chatnugget-dialog-body">'
+      + '<div class="chatnugget-preview-box">'
+      + '<div class="chatnugget-preview-label">Selected text</div>'
+      + '<div class="chatnugget-preview-text">' + previewText.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>'
+      + '</div>'
+      + '<div class="chatnugget-field">'
+      + '<label>Title</label>'
+      + '<input type="text" id="chatnugget-title" placeholder="Give this nugget a name..." value="" />'
+      + '</div>'
+      + '<div class="chatnugget-field">'
+      + '<label>Tags <span class="chatnugget-hint">(comma-separated)</span></label>'
+      + '<input type="text" id="chatnugget-tags" placeholder="e.g. python, backend, idea" />'
+      + '</div>'
+      + '<div class="chatnugget-field">'
+      + '<label>Note <span class="chatnugget-hint">(optional)</span></label>'
+      + '<textarea id="chatnugget-note" rows="2" placeholder="Why is this worth saving?"></textarea>'
+      + '</div>'
+      + '<div class="chatnugget-meta-row">'
+      + '<span class="chatnugget-platform-badge chatnugget-platform-' + PLATFORM + '">' + PLATFORM.toUpperCase() + '</span>'
+      + '<span class="chatnugget-meta-title">' + chatTitle.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>'
+      + '</div>'
+      + '</div>';
 
-      var bookmark = {
-        id: generateId(),
-        title: title || selectionData.text.slice(0, 60) + '...',
-        text: selectionData.fullText, tags: tags, note: note,
-        url: baseUrl,
-        platform: selectionData.platform,
-        conversationTitle: selectionData.conversationTitle,
-        createdAt: new Date().toISOString(),
-        textAnchor: selectionData.text.slice(0, 300),
-        textFragment: textFragment
-      };
-      saveBookmark(bookmark);
-      highlightSelection(selectionData.range, bookmark.id);
-      close();      showToast('Bookmark saved!');
+    dialogHTML += '<div class="chatnugget-dialog-footer">'
+      + '<button class="chatnugget-btn-cancel">Cancel</button>'
+      + '<button class="chatnugget-btn-save">'
+      + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>'
+      + ' Save Nugget'
+      + '</button>'
+      + '</div>'
+      + '</div>';
+
+    overlay.innerHTML = dialogHTML;
+    document.body.appendChild(overlay);
+
+    // Auto-generate title from first few words
+    var words = selectedText.split(/\s+/).slice(0, 6).join(' ');
+    var titleInput = document.getElementById('chatnugget-title');
+    if (titleInput) titleInput.value = words.length > 40 ? words.substring(0, 40) + '...' : words;
+
+    // Focus title field
+    setTimeout(function() { if (titleInput) titleInput.focus(); }, 100);
+
+    // Cancel button
+    overlay.querySelector('.chatnugget-btn-cancel').addEventListener('click', function() {
+      overlay.remove();
     });
+
+    // Click outside to close
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) overlay.remove();
+    });
+
+    // Save button
+    overlay.querySelector('.chatnugget-btn-save').addEventListener('click', function() {
+      saveBookmark(selectedText, overlay);
+    });
+
+    // Ctrl+Enter to save
     overlay.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') close();
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') overlay.querySelector('#chatmark-save').click();
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        saveBookmark(selectedText, overlay);
+      }
+      if (e.key === 'Escape') {
+        overlay.remove();
+      }
     });
   }
 
-  function saveBookmark(bookmark) {
-    chrome.storage.local.get({ bookmarks: [] }, function(result) {
-      var bookmarks = result.bookmarks;
+  // Save bookmark to storage
+  function saveBookmark(selectedText, overlay) {
+    var title = document.getElementById('chatnugget-title').value.trim() || 'Untitled';
+    var tagsRaw = document.getElementById('chatnugget-tags').value;
+    var note = document.getElementById('chatnugget-note').value.trim();
+
+    var tags = tagsRaw.split(',').map(function(t) { return t.trim(); }).filter(function(t) { return t.length > 0; });
+
+    var bookmark = {
+      id: Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+      title: title,
+      text: selectedText,
+      textAnchor: selectedText.substring(0, 150),
+      textFragment: generateTextFragment(selectedText),
+      tags: tags,
+      note: note,
+      url: window.location.href.split('#')[0],
+      platform: PLATFORM,
+      chatTitle: document.title || 'Untitled Chat',
+      timestamp: new Date().toISOString(),
+      pinned: false
+    };
+
+    chrome.storage.local.get({ bookmarks: [] }, function(data) {
+      var bookmarks = data.bookmarks;
       bookmarks.unshift(bookmark);
-      chrome.storage.local.set({ bookmarks: bookmarks });
+      chrome.storage.local.set({ bookmarks: bookmarks }, function() {
+        overlay.remove();
+        highlightSelection();
+        showToast('Nugget saved!');
+        chrome.runtime.sendMessage({ action: 'bookmarkSaved' });
+      });
     });
   }
 
-  function highlightSelection(range, bookmarkId) {
+  // Highlight the selected text briefly
+  function highlightSelection() {
+    var sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
     try {
-      var highlight = document.createElement('mark');
-      highlight.className = 'chatmark-highlight';
-      highlight.dataset.bookmarkId = bookmarkId;
-      highlight.title = 'ChatMark bookmark';
-      range.surroundContents(highlight);
-    } catch (e) {
-      console.log('ChatMark: Could not highlight complex selection, bookmark still saved.');
-    }
+      var range = sel.getRangeAt(0);
+      var span = document.createElement('span');
+      span.className = 'chatnugget-highlight-flash';
+      range.surroundContents(span);
+      setTimeout(function() {
+        if (span.parentNode) {
+          var parent = span.parentNode;
+          while (span.firstChild) {
+            parent.insertBefore(span.firstChild, span);
+          }
+          parent.removeChild(span);
+        }
+      }, 3000);
+    } catch (e) { /* ignore if range spans multiple elements */ }
   }
 
-  function showToast(message) {
-    var toast = document.createElement('div');    toast.className = 'chatmark-toast';
-    toast.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg> ' + escapeHtml(message);
+  // Toast notification
+  function showToast(msg) {
+    var toast = document.createElement('div');
+    toast.className = 'chatnugget-toast';
+    toast.textContent = msg;
     document.body.appendChild(toast);
-    requestAnimationFrame(function() { toast.classList.add('chatmark-toast-visible'); });
+    setTimeout(function() { toast.classList.add('chatnugget-toast-show'); }, 10);
     setTimeout(function() {
-      toast.classList.remove('chatmark-toast-visible');
+      toast.classList.remove('chatnugget-toast-show');
       setTimeout(function() { toast.remove(); }, 300);
-    }, 2200);
+    }, 2500);
   }
 
-  // ── Message listener — JS scroll fallback when text fragments fail ──
-  chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
-    if (message.action === 'scrollToBookmark') {
-      console.log('ChatMark: JS fallback scroll triggered');
-      scrollWithRetries(message.textAnchor);
-      sendResponse({ success: true });
-    }
-    if (message.action === 'ping') {
-      sendResponse({ platform: PLATFORM, url: window.location.href });
-    }
-  });
-
-  // Retry-based JS scroll — tries multiple times over ~12 seconds
+  // Scroll to bookmarked text with retries (fights platform auto-scroll)
   function scrollWithRetries(textAnchor) {
     if (!textAnchor) return;
     var attempt = 0;
@@ -215,7 +242,7 @@
     function tryScroll() {
       attempt++;
       if (doScroll(textAnchor)) {
-        // Found it. Re-scroll a few more times to fight platform auto-scroll
+        // Re-scroll after delays to fight platform auto-scroll
         setTimeout(function() { doScroll(textAnchor); }, 1000);
         setTimeout(function() { doScroll(textAnchor); }, 3000);
       } else if (attempt < maxAttempts) {
@@ -225,41 +252,51 @@
     tryScroll();
   }
 
+  // Perform the actual scroll using TreeWalker text search
   function doScroll(textAnchor) {
-    // Try several substring lengths
-    var lengths = [80, 40, 20];
-    for (var i = 0; i < lengths.length; i++) {
-      var search = textAnchor.slice(0, Math.min(lengths[i], textAnchor.length));
+    var searchLengths = [80, 40, 20];
+    for (var i = 0; i < searchLengths.length; i++) {
+      var searchText = textAnchor.substring(0, Math.min(searchLengths[i], textAnchor.length));
       var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
       var node;
       while (node = walker.nextNode()) {
-        var parent = node.parentElement;
-        if (!parent) continue;
-        if (parent.closest('#chatmark-float-btn, #chatmark-dialog-overlay, .chatmark-toast')) continue;
-        if (node.textContent.indexOf(search) >= 0) {
-          // Scroll to the block-level parent for better positioning
-          var target = parent;
-          while (target.parentElement && target.parentElement !== document.body) {
-            var d = window.getComputedStyle(target).display;
-            if (d === 'block' || d === 'flex' || d === 'list-item') break;
-            target = target.parentElement;
+        if (node.textContent && node.textContent.includes(searchText)) {
+          var el = node.parentElement;
+          if (el) {
+            el.scrollIntoView({ behavior: 'instant', block: 'center' });
+            // Add purple outline highlight
+            el.style.outline = '3px solid #6C5CE7';
+            el.style.outlineOffset = '4px';
+            el.style.borderRadius = '4px';
+            setTimeout(function() {
+              el.style.outline = '';
+              el.style.outlineOffset = '';
+              el.style.borderRadius = '';
+            }, 6000);
+            return true;
           }
-          target.scrollIntoView({ behavior: 'instant', block: 'center' });
-          // Add purple highlight
-          target.style.outline = '3px solid #6C5CE7';
-          target.style.outlineOffset = '4px';
-          target.style.borderRadius = '6px';
-          target.style.transition = 'outline 0.3s ease';
-          setTimeout(function() {
-            target.style.outline = '';
-            target.style.outlineOffset = '';
-          }, 6000);
-          return true;
         }
       }
     }
     return false;
   }
 
-  console.log('ChatMark v1.2.0 loaded on ' + PLATFORM);
+  // Listen for messages from popup/background
+  chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+    if (request.action === 'scrollToBookmark') {
+      scrollWithRetries(request.textAnchor);
+      sendResponse({ success: true });
+    }
+    if (request.action === 'triggerBookmark') {
+      var sel = window.getSelection();
+      var text = request.text || (sel ? sel.toString().trim() : '');
+      if (text.length > 0) {
+        showBookmarkDialog(text);
+      } else {
+        showToast('Select some text first!');
+      }
+      sendResponse({ success: true });
+    }
+  });
+
 })();

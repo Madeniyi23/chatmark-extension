@@ -1,71 +1,87 @@
-// ChatMark — Background Service Worker
+// ChatNugget — Background Service Worker v2.0.0
 
-// ─── Context Menu ───────────────────────────────────────────
-chrome.runtime.onInstalled.addListener(() => {
+// Update badge count
+function updateBadge() {
+  chrome.storage.local.get({ bookmarks: [] }, function(data) {
+    var count = data.bookmarks.length;
+    var text = count > 0 ? String(count) : '';
+    chrome.action.setBadgeText({ text: text });
+    chrome.action.setBadgeBackgroundColor({ color: '#6C5CE7' });
+  });
+}
+
+// Initialize badge on install/startup
+chrome.runtime.onInstalled.addListener(function() {
+  updateBadge();
   chrome.contextMenus.create({
-    id: 'chatmark-bookmark-selection',
-    title: 'Bookmark this with ChatMark',
+    id: 'chatnugget-bookmark',
+    title: 'Bookmark this with ChatNugget',
     contexts: ['selection'],
     documentUrlPatterns: [
       'https://claude.ai/*',
       'https://chat.openai.com/*',
       'https://chatgpt.com/*',
-      'https://gemini.google.com/*',
-      'https://copilot.microsoft.com/*',
-    ],
+      'https://gemini.google.com/*'
+    ]
   });
 });
 
-// Handle context menu clicks
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === 'chatmark-bookmark-selection' && info.selectionText) {
-    const bookmark = {
-      id: 'cm_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8),
-      title: info.selectionText.slice(0, 60) + (info.selectionText.length > 60 ? '...' : ''),
-      text: info.selectionText.slice(0, 2000),
-      tags: [],
-      note: '',
-      url: tab.url,      platform: detectPlatformFromUrl(tab.url),
-      conversationTitle: tab.title || 'Untitled Chat',
-      createdAt: new Date().toISOString(),
-      textAnchor: info.selectionText.slice(0, 300),
-    };
+chrome.runtime.onStartup.addListener(function() {
+  updateBadge();
+});
 
-    chrome.storage.local.get({ bookmarks: [] }, (result) => {
-      const bookmarks = result.bookmarks;
-      bookmarks.unshift(bookmark);
-      chrome.storage.local.set({ bookmarks });
+// Listen for storage changes to update badge
+chrome.storage.onChanged.addListener(function(changes, area) {
+  if (area === 'local' && changes.bookmarks) {
+    updateBadge();
+  }
+});
+
+// Context menu click handler
+chrome.contextMenus.onClicked.addListener(function(info, tab) {
+  if (info.menuItemId === 'chatnugget-bookmark') {
+    chrome.tabs.sendMessage(tab.id, {
+      action: 'triggerBookmark',
+      text: info.selectionText
     });
   }
 });
 
-// ─── Message Handling ───────────────────────────────────────
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'openPopup') {
-    chrome.action.setBadgeText({ text: '!' });
-    chrome.action.setBadgeBackgroundColor({ color: '#6C5CE7' });
-    setTimeout(() => {
-      chrome.action.setBadgeText({ text: '' });
-    }, 3000);
-  }
-});
-
-// ─── Keyboard Shortcut ──────────────────────────────────────
-chrome.commands?.onCommand?.addListener((command) => {
-  if (command === 'quick-bookmark') {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {      if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'triggerBookmark' });
+// Keyboard shortcut handler
+chrome.commands.onCommand.addListener(function(command) {
+  if (command === 'bookmark-selection') {
+    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+      if (tabs[0]) {
+        chrome.tabs.sendMessage(tabs[0].id, {
+          action: 'triggerBookmark'
+        });
       }
     });
   }
 });
 
-// ─── Utility ────────────────────────────────────────────────
+// Message handler
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+  if (request.action === 'bookmarkSaved') {
+    updateBadge();
+    sendResponse({ success: true });
+  }
+  if (request.action === 'bookmarkDeleted') {
+    updateBadge();
+    sendResponse({ success: true });
+  }
+  if (request.action === 'getBadgeCount') {
+    chrome.storage.local.get({ bookmarks: [] }, function(data) {
+      sendResponse({ count: data.bookmarks.length });
+    });
+    return true;
+  }
+});
+
+// Detect platform from URL
 function detectPlatformFromUrl(url) {
-  if (!url) return 'unknown';
   if (url.includes('claude.ai')) return 'claude';
   if (url.includes('chat.openai.com') || url.includes('chatgpt.com')) return 'chatgpt';
   if (url.includes('gemini.google.com')) return 'gemini';
-  if (url.includes('copilot.microsoft.com')) return 'copilot';
   return 'unknown';
 }

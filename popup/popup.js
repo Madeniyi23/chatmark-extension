@@ -1,174 +1,218 @@
-// ChatMark — Popup Script v1.1.0
-// Uses Chrome Text Fragments for navigation
-(function () {
+// ChatNugget — Popup Script v2.0.0
+
+(function() {
   'use strict';
 
-  var allBookmarks = [];
-  var activeFilter = 'all';
-  var activeTag = null;
+  var currentFilter = 'all';
+  var currentTagFilter = null;
+  var searchQuery = '';
 
-  var searchInput = document.getElementById('search-input');
-  var clearBtn = document.getElementById('clear-search');
-  var container = document.getElementById('bookmarks-container');
-  var emptyState = document.getElementById('empty-state');
-  var noResults = document.getElementById('no-results');
-  var bookmarkCount = document.getElementById('bookmark-count');
-  var tagCloud = document.getElementById('tag-cloud');
+  // Generate text fragment for deep-linking
+  function generateTextFragment(text) {
+    var clean = text.trim();
+    var words = clean.split(/\s+/);
+    if (words.length <= 12) {
+      var exact = words.slice(0, 8).join(' ');
+      return encodeURIComponent(exact);
+    } else {
+      var startWords = words.slice(0, 6).join(' ');
+      var endWords = words.slice(-6).join(' ');
+      return encodeURIComponent(startWords) + ',' + encodeURIComponent(endWords);
+    }
+  }
 
+  // Load and render bookmarks
   function loadBookmarks() {
-    chrome.storage.local.get({ bookmarks: [] }, function(result) {
-      allBookmarks = result.bookmarks;
-      bookmarkCount.textContent = allBookmarks.length;
-      renderTagCloud();
-      renderBookmarks();
+    chrome.storage.local.get({ bookmarks: [] }, function(data) {
+      var bookmarks = data.bookmarks;
+      document.getElementById('bookmark-count').textContent = bookmarks.length;
+      renderBookmarks(bookmarks);
+      renderTagCloud(bookmarks);
     });
   }
 
-  function renderTagCloud() {
+  // Render tag cloud
+  function renderTagCloud(bookmarks) {
     var tagCounts = {};
-    allBookmarks.forEach(function(b) {      (b.tags || []).forEach(function(tag) {
+    bookmarks.forEach(function(b) {
+      (b.tags || []).forEach(function(tag) {
         tagCounts[tag] = (tagCounts[tag] || 0) + 1;
       });
     });
-    var tags = Object.entries(tagCounts).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 15);
-    if (tags.length === 0) { tagCloud.style.display = 'none'; return; }
-    tagCloud.style.display = 'flex';
-    tagCloud.innerHTML = tags.map(function(pair) {
-      return '<button class="tag-chip ' + (activeTag === pair[0] ? 'tag-chip-active' : '') + '" data-tag="' + escapeHtml(pair[0]) + '">#' + escapeHtml(pair[0]) + ' <span class="tag-count">' + pair[1] + '</span></button>';
-    }).join('');
-    tagCloud.querySelectorAll('.tag-chip').forEach(function(chip) {
+    var container = document.getElementById('tag-cloud');
+    container.innerHTML = '';
+    var tags = Object.keys(tagCounts).sort(function(a, b) { return tagCounts[b] - tagCounts[a]; });
+    if (tags.length === 0) { container.style.display = 'none'; return; }
+    container.style.display = 'flex';
+    tags.slice(0, 8).forEach(function(tag) {
+      var chip = document.createElement('button');
+      chip.className = 'tag-chip' + (currentTagFilter === tag ? ' active' : '');
+      chip.innerHTML = '#' + tag + ' <span class="tag-count">' + tagCounts[tag] + '</span>';
       chip.addEventListener('click', function() {
-        activeTag = (activeTag === chip.dataset.tag) ? null : chip.dataset.tag;
-        renderTagCloud(); renderBookmarks();
+        currentTagFilter = currentTagFilter === tag ? null : tag;
+        loadBookmarks();
       });
+      container.appendChild(chip);
     });
   }
 
-  function getFilteredBookmarks() {
-    var filtered = allBookmarks.slice();
-    var query = searchInput.value.trim().toLowerCase();
-    if (activeFilter !== 'all') filtered = filtered.filter(function(b) { return b.platform === activeFilter; });
-    if (activeTag) filtered = filtered.filter(function(b) { return (b.tags || []).indexOf(activeTag) >= 0; });
-    if (query) {
-      filtered = filtered.filter(function(b) {
-        return [b.title, b.text, b.note, b.conversationTitle].concat(b.tags || []).filter(Boolean).join(' ').toLowerCase().indexOf(query) >= 0;
-      });
-    }
-    return filtered;
-  }
-  function renderBookmarks() {
-    var filtered = getFilteredBookmarks();
-    emptyState.style.display = allBookmarks.length === 0 ? 'flex' : 'none';
-    noResults.style.display = (allBookmarks.length > 0 && filtered.length === 0) ? 'flex' : 'none';
-    container.style.display = filtered.length > 0 ? 'block' : 'none';
-    if (filtered.length === 0) { container.innerHTML = ''; return; }
-    var groups = groupByDate(filtered);
-    var html = '';
-    Object.keys(groups).forEach(function(date) {
-      html += '<div class="date-group"><div class="date-header">' + escapeHtml(date) + '</div>';
-      groups[date].forEach(function(b) { html += renderBookmarkCard(b); });
-      html += '</div>';
-    });
-    container.innerHTML = html;
-    attachCardHandlers();
+  // Format date for grouping
+  function formatDateGroup(dateStr) {
+    var d = new Date(dateStr);
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+    var bDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    if (bDate.getTime() === today.getTime()) return 'Today';
+    if (bDate.getTime() === yesterday.getTime()) return 'Yesterday';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
-  function attachCardHandlers() {
-    container.querySelectorAll('.bookmark-card').forEach(function(card) {
-      var id = card.dataset.id;
-      var gotoBtn = card.querySelector('.bookmark-goto');
-      if (gotoBtn) {
-        gotoBtn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          var bm = allBookmarks.find(function(b) { return b.id === id; });
-          if (bm) navigateToBookmark(bm);
-        });
-      }      var deleteBtn = card.querySelector('.bookmark-delete');
-      if (deleteBtn) {
-        deleteBtn.addEventListener('click', function(e) {
-          e.stopPropagation(); deleteBookmark(id);
-        });
-      }
-      var copyBtn = card.querySelector('.bookmark-copy');
-      if (copyBtn) {
-        copyBtn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          var bm = allBookmarks.find(function(b) { return b.id === id; });
-          if (bm) {
-            navigator.clipboard.writeText(bm.text);
-            e.currentTarget.textContent = 'Copied!';
-            var btn = e.currentTarget;
-            setTimeout(function() {
-              btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
-            }, 1200);
-          }
-        });
-      }
-      card.querySelectorAll('.bookmark-tag').forEach(function(tagEl) {
-        tagEl.addEventListener('click', function(e) {
-          e.stopPropagation();
-          activeTag = tagEl.dataset.tag;
-          renderTagCloud(); renderBookmarks();
-        });
-      });
-    });
-  }
-  function renderBookmarkCard(bm) {
-    var preview = bm.text.length > 180 ? bm.text.slice(0, 180) + '...' : bm.text;
-    var time = new Date(bm.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    var hp = highlightSearch(escapeHtml(preview));
-    var ht = highlightSearch(escapeHtml(bm.title));
-    var tagsHtml = (bm.tags || []).map(function(t) {
-      return '<button class="bookmark-tag" data-tag="' + escapeHtml(t) + '">#' + escapeHtml(t) + '</button>';
-    }).join('');
-    var noteHtml = bm.note ? '<div class="bookmark-note">' + escapeHtml(bm.note) + '</div>' : '';
-    return '<div class="bookmark-card" data-id="' + bm.id + '">' +
-      '<div class="bookmark-card-top"><div class="bookmark-title">' + ht + '</div>' +
-      '<div class="bookmark-actions">' +
-      '<button class="bookmark-action-btn bookmark-copy" title="Copy text"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>' +
-      '<button class="bookmark-action-btn bookmark-goto" title="Go to chat"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></button>' +
-      '<button class="bookmark-action-btn bookmark-delete" title="Delete"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>' +
-      '</div></div>' +
-      '<div class="bookmark-preview">' + hp + '</div>' + noteHtml +
-      '<div class="bookmark-card-bottom"><div class="bookmark-tags-row">' +
-      '<span class="platform-dot platform-dot-' + bm.platform + '"></span>' + tagsHtml +      '</div><div class="bookmark-time">' + time + '</div></div></div>';
+  function formatTime(dateStr) {
+    return new Date(dateStr).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   }
 
-  function highlightSearch(text) {
-    var query = searchInput.value.trim();
+  // Highlight search matches in text
+  function highlightMatch(text, query) {
     if (!query) return text;
-    try {
-      var escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      return text.replace(new RegExp('(' + escaped + ')', 'gi'), '<span class="search-highlight">$1</span>');
-    } catch (e) { return text; }
+    var escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return text.replace(new RegExp('(' + escaped + ')', 'gi'), '<span class="search-hl">$1</span>');
   }
 
-  function groupByDate(bookmarks) {
-    var groups = {};
-    var today = new Date().toDateString();
-    var yesterday = new Date(Date.now() - 86400000).toDateString();
-    bookmarks.forEach(function(b) {
-      var d = new Date(b.createdAt).toDateString();
-      var label;
-      if (d === today) label = 'Today';
-      else if (d === yesterday) label = 'Yesterday';
-      else label = new Date(b.createdAt).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-      if (!groups[label]) groups[label] = [];
-      groups[label].push(b);
+  // Render bookmarks list
+  function renderBookmarks(bookmarks) {
+    var list = document.getElementById('bookmarks-list');
+    var empty = document.getElementById('empty-state');
+
+    // Filter
+    var filtered = bookmarks.filter(function(b) {
+      if (currentFilter !== 'all' && b.platform !== currentFilter) return false;
+      if (currentTagFilter && (!b.tags || b.tags.indexOf(currentTagFilter) === -1)) return false;
+      if (searchQuery) {
+        var q = searchQuery.toLowerCase();
+        var haystack = (b.title + ' ' + b.text + ' ' + (b.note || '') + ' ' + (b.tags || []).join(' ')).toLowerCase();
+        if (haystack.indexOf(q) === -1) return false;
+      }
+      return true;
     });
-    return groups;
+
+    // Sort: pinned first, then by timestamp
+    filtered.sort(function(a, b) {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return new Date(b.timestamp) - new Date(a.timestamp);
+    });
+
+    list.innerHTML = '';
+    if (filtered.length === 0) {
+      list.appendChild(empty);
+      empty.style.display = 'flex';
+      return;
+    }
+    empty.style.display = 'none';
+
+    var lastGroup = '';
+    filtered.forEach(function(bookmark) {
+      var group = bookmark.pinned ? 'Pinned' : formatDateGroup(bookmark.timestamp);
+      if (group !== lastGroup) {
+        var header = document.createElement('div');
+        header.className = 'date-header';
+        header.textContent = group;
+        if (group === 'Pinned') header.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="#6C5CE7" stroke="#6C5CE7" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg> Pinned';
+        list.appendChild(header);
+        lastGroup = group;
+      }
+
+      var card = document.createElement('div');
+      card.className = 'bm-card' + (bookmark.pinned ? ' bm-card-pinned' : '');
+
+      var previewText = bookmark.text.length > 120 ? bookmark.text.substring(0, 120) + '...' : bookmark.text;
+      var titleHtml = highlightMatch(bookmark.title, searchQuery);
+      var textHtml = highlightMatch(previewText.replace(/</g, '&lt;').replace(/>/g, '&gt;'), searchQuery);
+
+      var cardHTML = '<div class="bm-title">' + titleHtml + '</div>'
+        + '<div class="bm-text">' + textHtml + '</div>';
+
+      if (bookmark.note) {
+        cardHTML += '<div class="bm-note">' + highlightMatch(bookmark.note.replace(/</g, '&lt;').replace(/>/g, '&gt;'), searchQuery) + '</div>';
+      }
+
+      cardHTML += '<div class="bm-bottom">'
+        + '<div class="bm-tags">'
+        + '<span class="platform-dot platform-dot-' + bookmark.platform + '"></span>';
+
+      (bookmark.tags || []).forEach(function(tag) {
+        cardHTML += '<span class="bookmark-tag">#' + tag + '</span>';
+      });
+
+      cardHTML += '</div>'
+        + '<span class="bm-time">' + formatTime(bookmark.timestamp) + '</span>'
+        + '</div>';
+
+      // Hover actions
+      cardHTML += '<div class="bm-actions">'
+        + '<button class="bm-action-btn bm-pin-btn" title="' + (bookmark.pinned ? 'Unpin' : 'Pin to top') + '">'
+        + '<svg width="14" height="14" viewBox="0 0 24 24" fill="' + (bookmark.pinned ? '#6C5CE7' : 'none') + '" stroke="currentColor" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>'
+        + '</button>'
+        + '<button class="bm-action-btn bm-goto-btn" title="Go to chat">'
+        + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>'
+        + '</button>'
+        + '<button class="bm-action-btn bm-delete-btn" title="Delete">'
+        + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>'
+        + '</button>'
+        + '</div>';
+
+      card.innerHTML = cardHTML;
+
+      // Pin button handler
+      card.querySelector('.bm-pin-btn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        togglePin(bookmark.id);
+      });
+
+      // Go to chat button handler
+      card.querySelector('.bm-goto-btn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        navigateToBookmark(bookmark);
+      });
+
+      // Delete button handler
+      card.querySelector('.bm-delete-btn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        deleteBookmark(bookmark.id);
+      });
+
+      list.appendChild(card);
+    });
   }
-  // ══════════════════════════════════════════════════════════════
-  // NAVIGATE TO BOOKMARK — using Chrome Text Fragments API
-  // Instead of fighting platform auto-scroll with JS, we let the
-  // BROWSER natively scroll to and highlight the text by using
-  // the #:~:text= fragment directive in the URL.
-  // See: https://web.dev/articles/text-fragments
-  // ══════════════════════════════════════════════════════════════
+
+  // Toggle pin status
+  function togglePin(id) {
+    chrome.storage.local.get({ bookmarks: [] }, function(data) {
+      var bookmarks = data.bookmarks.map(function(b) {
+        if (b.id === id) b.pinned = !b.pinned;
+        return b;
+      });
+      chrome.storage.local.set({ bookmarks: bookmarks }, function() {
+        loadBookmarks();
+      });
+    });
+  }
+
+  // Delete bookmark
+  function deleteBookmark(id) {
+    chrome.storage.local.get({ bookmarks: [] }, function(data) {
+      var bookmarks = data.bookmarks.filter(function(b) { return b.id !== id; });
+      chrome.storage.local.set({ bookmarks: bookmarks }, function() {
+        loadBookmarks();
+        chrome.runtime.sendMessage({ action: 'bookmarkDeleted' });
+      });
+    });
+  }
+
+  // Navigate to bookmarked section — hybrid: Text Fragments + JS fallback
   function navigateToBookmark(bookmark) {
     var baseUrl = (bookmark.url || '').split('#')[0];
-
-    // Build the text fragment
     var textFrag = bookmark.textFragment;
     if (!textFrag && bookmark.textAnchor) {
       textFrag = generateTextFragment(bookmark.textAnchor);
@@ -179,14 +223,10 @@
       navUrl = baseUrl + '#:~:text=' + textFrag;
     }
 
-    // Open in a new tab with text fragment for browser-native scroll
     chrome.tabs.create({ url: navUrl, active: true }, function(newTab) {
-      // ALSO send a JS fallback scroll after the page loads
-      // This handles cases where text fragments fail (same URL, etc.)
       function onUpdated(tabId, info) {
         if (tabId === newTab.id && info.status === 'complete') {
           chrome.tabs.onUpdated.removeListener(onUpdated);
-          // Wait for platform to finish its own scrolling, then override
           setTimeout(function() {
             chrome.tabs.sendMessage(newTab.id, {
               action: 'scrollToBookmark',
@@ -199,96 +239,64 @@
     });
   }
 
-  function generateTextFragment(text) {
-    var clean = (text || '').trim();
-    if (!clean) return '';    var words = clean.split(/\s+/);
-    if (words.length <= 12) {
-      // Short text — exact match (first 8 words)
-      return encodeURIComponent(words.slice(0, 8).join(' '));
-    } else {
-      // Long text — range match: first 6 words,last 6 words
-      var start = encodeURIComponent(words.slice(0, 6).join(' '));
-      var end = encodeURIComponent(words.slice(-6).join(' '));
-      return start + ',' + end;
-    }
-  }
-
-  function deleteBookmark(id) {
-    allBookmarks = allBookmarks.filter(function(b) { return b.id !== id; });
-    chrome.storage.local.set({ bookmarks: allBookmarks }, function() {
-      bookmarkCount.textContent = allBookmarks.length;
-      renderTagCloud(); renderBookmarks();
+  // Export bookmarks
+  function exportBookmarks() {
+    chrome.storage.local.get({ bookmarks: [] }, function(data) {
+      var blob = new Blob([JSON.stringify(data.bookmarks, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'chatnugget-bookmarks.json';
+      a.click();
+      URL.revokeObjectURL(url);
     });
   }
 
-  // Export
-  document.getElementById('export-btn').addEventListener('click', function() {
-    var data = JSON.stringify(allBookmarks, null, 2);
-    var blob = new Blob([data], { type: 'application/json' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'chatmark-bookmarks-' + new Date().toISOString().slice(0, 10) + '.json';
-    a.click(); URL.revokeObjectURL(url);
+  // Import bookmarks
+  function importBookmarks(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        var imported = JSON.parse(e.target.result);
+        if (!Array.isArray(imported)) throw new Error('Invalid format');
+        chrome.storage.local.get({ bookmarks: [] }, function(data) {
+          var merged = data.bookmarks.concat(imported);
+          chrome.storage.local.set({ bookmarks: merged }, function() {
+            loadBookmarks();
+            chrome.runtime.sendMessage({ action: 'bookmarkSaved' });
+          });
+        });
+      } catch (err) {
+        alert('Invalid file format. Please select a valid ChatNugget JSON export.');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // Event listeners
+  document.getElementById('search-input').addEventListener('input', function(e) {
+    searchQuery = e.target.value.trim();
+    loadBookmarks();
   });
-  // Import
-  document.getElementById('import-btn').addEventListener('click', function() {
+
+  document.getElementById('filter-bar').addEventListener('click', function(e) {
+    var chip = e.target.closest('.chip');
+    if (!chip) return;
+    document.querySelectorAll('.chip').forEach(function(c) { c.classList.remove('active'); });
+    chip.classList.add('active');
+    currentFilter = chip.dataset.platform;
+    loadBookmarks();
+  });
+
+  document.getElementById('btn-export').addEventListener('click', exportBookmarks);
+  document.getElementById('btn-import').addEventListener('click', function() {
     document.getElementById('import-file').click();
   });
   document.getElementById('import-file').addEventListener('change', function(e) {
-    var file = e.target.files[0];
-    if (!file) return;
-    var reader = new FileReader();
-    reader.onload = function(ev) {
-      try {
-        var imported = JSON.parse(ev.target.result);
-        if (Array.isArray(imported)) {
-          var existingIds = {};
-          allBookmarks.forEach(function(b) { existingIds[b.id] = true; });
-          var newOnes = imported.filter(function(b) { return !existingIds[b.id]; });
-          allBookmarks = newOnes.concat(allBookmarks);
-          chrome.storage.local.set({ bookmarks: allBookmarks }, function() {
-            bookmarkCount.textContent = allBookmarks.length;
-            renderTagCloud(); renderBookmarks();
-          });
-        }
-      } catch (err) { alert('Invalid bookmark file'); }
-    };
-    reader.readAsText(file);
+    if (e.target.files[0]) importBookmarks(e.target.files[0]);
   });
-
-  // Search
-  searchInput.addEventListener('input', function() {
-    clearBtn.style.display = searchInput.value ? 'block' : 'none';
-    renderBookmarks();
-  });  clearBtn.addEventListener('click', function() {
-    searchInput.value = ''; clearBtn.style.display = 'none';
-    renderBookmarks(); searchInput.focus();
-  });
-
-  // Platform filter chips
-  document.querySelectorAll('.filter-chip').forEach(function(chip) {
-    chip.addEventListener('click', function() {
-      document.querySelectorAll('.filter-chip').forEach(function(c) { c.classList.remove('active'); });
-      chip.classList.add('active');
-      activeFilter = chip.dataset.platform;
-      renderBookmarks();
-    });
-  });
-
-  function escapeHtml(str) {
-    var div = document.createElement('div');
-    div.textContent = str || '';
-    return div.innerHTML;
-  }
 
   // Initialize
   loadBookmarks();
-  chrome.storage.onChanged.addListener(function(changes) {
-    if (changes.bookmarks) {
-      allBookmarks = changes.bookmarks.newValue || [];
-      bookmarkCount.textContent = allBookmarks.length;
-      renderTagCloud(); renderBookmarks();
-    }
-  });
+
 })();
