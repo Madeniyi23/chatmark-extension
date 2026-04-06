@@ -1,6 +1,6 @@
 # ChatMark — Bookmark Moments in Your AI Conversations
 
-**The first browser extension that lets you highlight, bookmark, and search specific sections *within* AI chat conversations — across Claude, ChatGPT, Gemini, and Copilot.**
+**The first browser extension that lets you highlight, bookmark, and search specific sections *within* AI chat conversations — across Claude, ChatGPT, and Gemini.**
 
 ![ChatMark Preview](preview-banner.png)
 
@@ -38,7 +38,7 @@ Open the ChatMark popup to search across all your bookmarks. Filter by platform,
 ## Features
 
 - **Text-level bookmarking** — Don't just save a whole message. Highlight the exact sentence, paragraph, or code block you need.
-- **Works across platforms** — Claude, ChatGPT, Gemini, and Microsoft Copilot. One extension, one bookmark library.
+- **Works across platforms** — Claude, ChatGPT, and Gemini. One extension, one bookmark library.
 - **Full-text search** — Search across titles, bookmarked text, notes, and tags. Matching terms are highlighted in yellow.
 - **Platform filters** — See only your Claude bookmarks, or only ChatGPT, or all of them together.
 - **Tag system** — Organize bookmarks with tags. A clickable tag cloud appears when you have enough bookmarks.
@@ -57,7 +57,6 @@ Open the ChatMark popup to search across all your bookmarks. Filter by platform,
 | Claude | `claude.ai` | Supported |
 | ChatGPT | `chatgpt.com` / `chat.openai.com` | Supported |
 | Gemini | `gemini.google.com` | Supported |
-| Copilot | `copilot.microsoft.com` | Supported |
 ---
 
 ## Installation
@@ -66,7 +65,7 @@ Open the ChatMark popup to search across all your bookmarks. Filter by platform,
 
 1. **Clone this repo**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/chatmark-extension.git
+   git clone https://github.com/Madeniyi23/chatmark-extension.git
    ```
 
 2. **Open Chrome Extensions**
@@ -88,7 +87,7 @@ Open the ChatMark popup to search across all your bookmarks. Filter by platform,
 
 ## Usage
 **Bookmarking:**
-1. Go to any supported AI chat platform (Claude, ChatGPT, Gemini, Copilot)
+1. Go to any supported AI chat platform (Claude, ChatGPT, Gemini)
 2. Select any text in a conversation
 3. Click the purple **Bookmark** button that appears
 4. Add a title, tags, and optional note
