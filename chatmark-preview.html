@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChatMark — Preview</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0eef6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+
+    .page-title {
+      font-size: 32px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #6C5CE7, #a88bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+    .page-subtitle {
+      font-size: 15px;
+      color: #888;
+      margin-bottom: 40px;
+    }
+
+    .demo-row {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 1200px;
+    }
+
+    .demo-card {
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 8px 40px rgba(108, 92, 231, 0.12), 0 1px 4px rgba(0,0,0,0.04);
+      overflow: hidden;
+    }
+
+    .demo-label {
+      padding: 14px 20px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #6C5CE7;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    /* --- POPUP MOCK --- */
+    .popup-mock { width: 400px; }
+    .popup-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px 10px; border-bottom: 1px solid #f0f0f0;
+    }
+    .popup-brand { display: flex; align-items: center; gap: 8px; }
+    .popup-brand svg { color: #6C5CE7; }
+    .popup-brand h2 {
+      font-size: 17px; font-weight: 800;
+      background: linear-gradient(135deg, #6C5CE7, #a88bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .popup-stats { font-size: 12px; color: #888; }
+    .popup-stats span { font-weight: 700; color: #6C5CE7; }
+    .search-bar { position: relative; padding: 10px 16px 6px; }
+    .search-bar input {
+      width: 100%; padding: 9px 12px 9px 36px;
+      border: 1.5px solid #e8e8e8; border-radius: 10px;
+      font-size: 13px; color: #333; background: #f8f8f8; outline: none;
+    }
+    .search-bar svg {
+      position: absolute; left: 28px; top: 50%; transform: translateY(-50%);
+      color: #aaa; margin-top: 2px;
+    }
+    .filter-bar {
+      display: flex; gap: 6px; padding: 8px 16px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .chip {
+      padding: 5px 12px; border: 1.5px solid #e8e8e8; border-radius: 20px;
+      font-size: 12px; font-weight: 600; color: #777; background: #fff;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .chip.active { background: #6C5CE7; border-color: #6C5CE7; color: #fff; }
+    .chip-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .chip-dot-claude { background: #D4A574; }
+    .chip-dot-chatgpt { background: #10A37F; }
+    .chip-dot-gemini { background: #4285F4; }
+    .chip.active .chip-dot { background: rgba(255,255,255,0.7); }
+    .tag-row {
+      display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 16px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .tag-chip {
+      padding: 3px 10px; border: 1px solid #e8e5ff; border-radius: 14px;
+      background: #f8f7ff; font-size: 11px; font-weight: 600; color: #6C5CE7;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .tag-chip.active { background: #6C5CE7; border-color: #6C5CE7; color: #fff; }
+    .tag-count { font-size: 10px; opacity: 0.7; }
+    .date-header {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.6px; color: #999; padding: 10px 16px 6px;
+    }
+    .bm-card {
+      background: #fff; border: 1px solid #efefef; border-radius: 12px;
+      padding: 12px 14px; margin: 0 16px 8px; transition: all 0.15s;
+    }
+    .bm-card:hover { border-color: #d8d4ff; box-shadow: 0 2px 12px rgba(108,92,231,0.06); }
+    .bm-title { font-size: 13px; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+    .bm-text { font-size: 12.5px; line-height: 1.55; color: #555; margin-bottom: 8px; }
+    .bm-text .hl { background: #fff3bf; border-radius: 2px; padding: 0 1px; }
+    .bm-note {
+      font-size: 12px; color: #8888aa; font-style: italic;
+      padding: 6px 10px; background: #f8f7ff; border-radius: 6px;
+      margin-bottom: 8px; border-left: 3px solid #d8d4ff;
+    }
+    .bm-bottom { display: flex; align-items: center; justify-content: space-between; }
+    .bm-tags { display: flex; align-items: center; gap: 4px; }
+    .plat-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .plat-claude { background: #D4A574; }
+    .plat-chatgpt { background: #10A37F; }
+    .plat-gemini { background: #4285F4; }
+    .bm-tag {
+      font-size: 10.5px; font-weight: 600; color: #7c6dd8;
+      background: #f0edff; padding: 2px 7px; border-radius: 10px;
+    }
+    .bm-time { font-size: 11px; color: #bbb; }
+    .popup-footer {
+      display: flex; gap: 8px; padding: 10px 16px;
+      border-top: 1px solid #f0f0f0;
+    }
+    .footer-btn {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 8px; border: 1.5px solid #e8e8e8; border-radius: 8px;
+      font-size: 12px; font-weight: 600; color: #777; background: #fff;
+    }
+
+    /* --- BOOKMARK DIALOG MOCK --- */
+    .dialog-mock { width: 460px; }
+    .dialog-content { padding: 0 20px 20px; }
+    .dialog-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 18px 20px 14px; border-bottom: 1px solid #f0f0f0;
+    }
+    .dialog-header svg { color: #6C5CE7; }
+    .dialog-header h3 { font-size: 16px; font-weight: 700; color: #1a1a2e; flex: 1; }
+    .preview-box {
+      background: #f8f7ff; border: 1px solid #e8e5ff; border-radius: 10px;
+      padding: 12px 14px; margin-top: 16px;
+    }
+    .preview-label {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.5px; color: #6C5CE7; margin-bottom: 6px;
+    }
+    .preview-text { font-size: 13px; line-height: 1.5; color: #444; }
+    .field { margin-top: 14px; }
+    .field label { font-size: 13px; font-weight: 600; color: #333; display: block; margin-bottom: 5px; }
+    .field .hint { font-weight: 400; color: #999; }
+    .field input, .field textarea {
+      width: 100%; padding: 9px 12px;
+      border: 1.5px solid #e0e0e0; border-radius: 8px;
+      font-size: 14px; color: #333; outline: none; font-family: inherit;
+    }
+    .field input::placeholder, .field textarea::placeholder { color: #bbb; }
+    .meta-row {
+      display: flex; align-items: center; gap: 8px; margin-top: 12px;
+    }
+    .platform-badge {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; padding: 3px 8px; border-radius: 5px;
+      background: #F0E6D3; color: #8B6914;
+    }
+    .meta-title { font-size: 12px; color: #888; }
+    .dialog-footer {
+      display: flex; justify-content: flex-end; gap: 10px;
+      padding: 14px 20px 18px; border-top: 1px solid #f0f0f0;
+    }
+    .btn-cancel {
+      padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      background: #f5f5f5; color: #666; border: none;
+    }
+    .btn-save {
+      padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      background: linear-gradient(135deg, #6C5CE7, #8B7CF7); color: #fff;
+      border: none; display: flex; align-items: center; gap: 6px;
+      box-shadow: 0 2px 8px rgba(108,92,231,0.3);
+    }
+
+    /* --- FLOATING BTN MOCK --- */
+    .float-demo { width: 460px; padding: 30px 20px; }
+    .mock-chat {
+      background: #f8f8f8; border-radius: 12px; padding: 16px;
+      font-size: 14px; line-height: 1.7; color: #333; position: relative;
+    }
+    .mock-selection {
+      background: rgba(66, 133, 244, 0.15);
+      border-radius: 2px;
+    }
+    .float-btn-mock {
+      position: absolute;
+      top: -10px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 6px;
+      padding: 7px 14px;
+      background: linear-gradient(135deg, #6C5CE7, #8B7CF7);
+      color: #fff; font-size: 13px; font-weight: 600;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(108,92,231,0.35);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page-title">ChatMark</div>
+  <p class="page-subtitle">Bookmark moments in your AI conversations</p>
+
+  <div class="demo-row">
+
+    <!-- Floating Button Demo -->
+    <div class="demo-card float-demo">
+      <div class="demo-label">1. Select text &rarr; Click Bookmark</div>
+      <div style="padding: 20px 4px 10px">
+        <div class="mock-chat">
+          <div class="float-btn-mock">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+            Bookmark
+          </div>
+          To implement a rate limiter in Python, you can use the <span class="mock-selection">token bucket algorithm. This approach gives you a bucket that fills at a constant rate. Each request removes a token, and if the bucket is empty, the request is denied or delayed</span>. Here's a simple implementation...
+        </div>
+      </div>
+    </div>
+
+    <!-- Popup Mock -->
+    <div class="demo-card popup-mock">
+      <div class="demo-label">2. Search &amp; manage bookmarks</div>
+
+      <div class="popup-header">
+        <div class="popup-brand">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+          <h2>ChatMark</h2>
+        </div>
+        <div class="popup-stats"><span>12</span> bookmarks</div>
+      </div>
+
+      <div class="search-bar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" value="rate limiter" readonly />
+      </div>
+
+      <div class="filter-bar">
+        <div class="chip active">All</div>
+        <div class="chip"><span class="chip-dot chip-dot-claude"></span>Claude</div>
+        <div class="chip"><span class="chip-dot chip-dot-chatgpt"></span>ChatGPT</div>
+        <div class="chip"><span class="chip-dot chip-dot-gemini"></span>Gemini</div>
+      </div>
+
+      <div class="tag-row">
+        <div class="tag-chip">#python <span class="tag-count">4</span></div>
+        <div class="tag-chip active">#backend <span class="tag-count">3</span></div>
+        <div class="tag-chip">#code <span class="tag-count">7</span></div>
+        <div class="tag-chip">#idea <span class="tag-count">2</span></div>
+      </div>
+
+      <div class="date-header">Today</div>
+
+      <div class="bm-card">
+        <div class="bm-title">Token Bucket Rate Limiter</div>
+        <div class="bm-text">token bucket algorithm. This approach gives you a bucket that fills at a constant <span class="hl">rate limiter</span>. Each request removes a token...</div>
+        <div class="bm-note">Great pattern for the API gateway project</div>
+        <div class="bm-bottom">
+          <div class="bm-tags">
+            <span class="plat-dot plat-claude"></span>
+            <span class="bm-tag">#python</span>
+            <span class="bm-tag">#backend</span>
+          </div>
+          <span class="bm-time">2:34 PM</span>
+        </div>
+      </div>
+
+      <div class="bm-card">
+        <div class="bm-title">Redis-based Rate Limiting</div>
+        <div class="bm-text">For distributed systems, use Redis with a sliding window <span class="hl">rate limiter</span>. The MULTI/EXEC block ensures atomicity...</div>
+        <div class="bm-bottom">
+          <div class="bm-tags">
+            <span class="plat-dot plat-chatgpt"></span>
+            <span class="bm-tag">#backend</span>
+            <span class="bm-tag">#redis</span>
+          </div>
+          <span class="bm-time">11:20 AM</span>
+        </div>
+      </div>
+
+      <div class="popup-footer">
+        <div class="footer-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Export
+        </div>
+        <div class="footer-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          Import
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog Mock -->
+    <div class="demo-card dialog-mock">
+      <div class="demo-label">3. Save with tags &amp; notes</div>
+
+      <div class="dialog-header">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+        <h3>Save Bookmark</h3>
+      </div>
+
+      <div class="dialog-content">
+        <div class="preview-box">
+          <div class="preview-label">Selected text</div>
+          <div class="preview-text">token bucket algorithm. This approach gives you a bucket that fills at a constant rate. Each request removes a token, and if the bucket is empty, the request is denied or delayed.</div>
+        </div>
+
+        <div class="field">
+          <label>Title</label>
+          <input type="text" value="Token Bucket Rate Limiter" readonly />
+        </div>
+
+        <div class="field">
+          <label>Tags <span class="hint">(comma-separated)</span></label>
+          <input type="text" value="python, backend, rate-limiting" readonly />
+        </div>
+
+        <div class="field">
+          <label>Note <span class="hint">(optional)</span></label>
+          <textarea rows="2" readonly>Great pattern for the API gateway project</textarea>
+        </div>
+
+        <div class="meta-row">
+          <span class="platform-badge">CLAUDE</span>
+          <span class="meta-title">Building a Python API Gateway</span>
+        </div>
+      </div>
+
+      <div class="dialog-footer">
+        <button class="btn-cancel">Cancel</button>
+        <button class="btn-save">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+          Save Bookmark
+        </button>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

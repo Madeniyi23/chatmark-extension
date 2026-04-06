@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "ChatMark — Bookmark AI Conversations",
+  "version": "1.0.1",
+  "description": "Highlight and bookmark sections of your AI chats across Claude, ChatGPT, Gemini & more. Search, tag, and jump back to the exact moment.",
+  "permissions": ["storage", "activeTab", "contextMenus", "tabs"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://claude.ai/*",
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*",
+        "https://gemini.google.com/*",
+        "https://copilot.microsoft.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

@@ -1,0 +1,175 @@
+/* ═══════════════════════════════════════════════════════════════
+   ChatMark — Content Script Styles
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Floating Bookmark Button ─────────────────────────────── */
+#chatmark-float-btn {
+  position: absolute;
+  z-index: 999999;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: linear-gradient(135deg, #6C5CE7, #8B7CF7);
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(108, 92, 231, 0.35), 0 1px 3px rgba(0,0,0,0.1);
+  transition: all 0.15s ease;
+  user-select: none;
+  white-space: nowrap;
+  animation: chatmark-fadeIn 0.15s ease;
+}
+
+#chatmark-float-btn:hover {
+  background: linear-gradient(135deg, #5A4BD1, #7B6CE7);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(108, 92, 231, 0.45), 0 2px 4px rgba(0,0,0,0.12);
+}
+#chatmark-float-btn svg {
+  flex-shrink: 0;
+}
+
+/* ─── Highlight on bookmarked text ─────────────────────────── */
+.chatmark-highlight {
+  background: rgba(108, 92, 231, 0.15);
+  border-bottom: 2px solid #6C5CE7;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.chatmark-highlight:hover {
+  background: rgba(108, 92, 231, 0.25);
+}
+
+/* ─── Flash effect for scroll-to ───────────────────────────── */
+.chatmark-flash {
+  animation: chatmark-pulse 0.6s ease 3;
+}
+
+@keyframes chatmark-pulse {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(108, 92, 231, 0.2); }
+}
+/* ─── Dialog Overlay ───────────────────────────────────────── */
+#chatmark-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  animation: chatmark-fadeIn 0.2s ease;
+}
+
+.chatmark-dialog {
+  width: 460px;
+  max-width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0,0,0,0.08);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  animation: chatmark-slideUp 0.25s ease;
+}
+
+.chatmark-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.chatmark-dialog-header svg { color: #6C5CE7; flex-shrink: 0; }
+.chatmark-dialog-header h3 { margin: 0; font-size: 16px; font-weight: 700; color: #1a1a2e; flex: 1; }
+
+.chatmark-close-btn {
+  background: none; border: none; font-size: 22px; color: #999;
+  cursor: pointer; padding: 0 4px; line-height: 1; border-radius: 6px; transition: all 0.15s;
+}
+.chatmark-close-btn:hover { background: #f5f5f5; color: #333; }
+
+.chatmark-dialog-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+
+.chatmark-preview {
+  background: #f8f7ff; border: 1px solid #e8e5ff; border-radius: 10px; padding: 12px 14px;
+}
+.chatmark-preview-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.5px; color: #6C5CE7; margin-bottom: 6px;
+}
+.chatmark-preview-text { font-size: 13px; line-height: 1.5; color: #444; max-height: 100px; overflow-y: auto; }
+
+.chatmark-field { display: flex; flex-direction: column; gap: 5px; }
+.chatmark-field label { font-size: 13px; font-weight: 600; color: #333; }
+.chatmark-hint { font-weight: 400; color: #999; }
+
+.chatmark-field input, .chatmark-field textarea {
+  padding: 9px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px;
+  font-size: 14px; font-family: inherit; color: #333;
+  transition: border-color 0.15s; outline: none; background: #fff;
+}
+.chatmark-field input:focus, .chatmark-field textarea:focus {
+  border-color: #6C5CE7; box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+}
+.chatmark-field input::placeholder, .chatmark-field textarea::placeholder { color: #bbb; }
+.chatmark-field textarea { resize: vertical; min-height: 44px; }
+
+.chatmark-meta { display: flex; align-items: center; gap: 8px; padding-top: 4px; }
+.chatmark-platform-badge {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; padding: 3px 8px; border-radius: 5px;
+}
+.chatmark-platform-claude { background: #F0E6D3; color: #8B6914; }
+.chatmark-platform-chatgpt { background: #D4EDDA; color: #155724; }
+.chatmark-platform-gemini { background: #D6E4FF; color: #1A3A6B; }
+.chatmark-platform-copilot { background: #E0F7FA; color: #00695C; }
+.chatmark-platform-unknown { background: #eee; color: #666; }
+.chatmark-meta-title { font-size: 12px; color: #888; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.chatmark-dialog-footer {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding: 14px 20px 18px; border-top: 1px solid #f0f0f0;
+}
+.chatmark-btn {
+  padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  font-family: inherit; cursor: pointer; border: none; transition: all 0.15s;
+  display: flex; align-items: center; gap: 6px;
+}
+.chatmark-btn-cancel { background: #f5f5f5; color: #666; }
+.chatmark-btn-cancel:hover { background: #eaeaea; color: #333; }
+.chatmark-btn-save {
+  background: linear-gradient(135deg, #6C5CE7, #8B7CF7); color: #fff;
+  box-shadow: 0 2px 8px rgba(108, 92, 231, 0.3);
+}
+.chatmark-btn-save:hover {
+  background: linear-gradient(135deg, #5A4BD1, #7B6CE7);
+  box-shadow: 0 4px 12px rgba(108, 92, 231, 0.4); transform: translateY(-1px);
+}
+
+/* ─── Toast Notification ───────────────────────────────────── */
+.chatmark-toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 99999999;
+  display: flex; align-items: center; gap: 8px; padding: 12px 20px;
+  background: #1a1a2e; color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px; font-weight: 500; border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  opacity: 0; transform: translateY(8px); transition: all 0.3s ease;
+}
+.chatmark-toast svg { color: #6C5CE7; }
+.chatmark-toast-visible { opacity: 1; transform: translateY(0); }
+
+/* ─── Animations ───────────────────────────────────────────── */
+@keyframes chatmark-fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes chatmark-slideUp {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
